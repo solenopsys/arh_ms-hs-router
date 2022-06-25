@@ -13,7 +13,7 @@ spec:
         app: {{ .Values.selectorLabel }}
     spec:
       containers:
-        - name: hs-router
+        - name:  {{ .Values.containers.router.name}}
           image:  {{ .Values.containers.router.image}}
           ports:
             - containerPort: {{ .Values.containers.router.httpPort}}
