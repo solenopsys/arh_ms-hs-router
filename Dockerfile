@@ -12,6 +12,6 @@ COPY *.go ./
 
 RUN go build -o /hStream-router
 
-EXPOSE 8080
+RUN go build  -o /go-binary
 
-CMD [ "/hStream-router" ]
+CMD [ "/go-binary" ]
