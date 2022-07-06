@@ -2,6 +2,7 @@ replicasCount: 1
 fullName: "hs-router"
 selectorLabel: "hs-router"
 
+
 service:
   nodePort: 30900
   httpPort: 8080
@@ -12,5 +13,5 @@ containers:
     image: registry.local/hs-router
     pullPolicy: Always
     httpPort: 8080
-    httpHost: 0.0.0.0
+    httpHost: "0.0.0.0"
     servicesPorts: 9999
