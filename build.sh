@@ -14,11 +14,11 @@ helm_build_push(){
 REGISTRY=registry.local
 NAME=hs-router
 ARCHS="linux/amd64,linux/arm64,linux/386"
-VER=0.1.9
+VER=0.1.10
 
 
-helm_build_push
-#build_push
+#helm_build_push
+build_push
 
 
 

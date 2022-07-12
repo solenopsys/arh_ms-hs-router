@@ -1,5 +1,7 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.18.3-buster
+FROM --platform=$BUILDPLATFORM  golang:1.18.3-buster
+
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -9,8 +11,8 @@ RUN go mod download
 
 COPY *.go ./
 
-RUN go build -o /hStream-router
+RUN GOOS=linux GOARCH=$TARGETARCH go build -o /hStream-router
 
-RUN go build  -o /go-binary
+RUN GOOS=linux GOARCH=$TARGETARCH go build  -o /go-binary
 
 CMD [ "/go-binary" ]

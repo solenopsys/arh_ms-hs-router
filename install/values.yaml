@@ -4,7 +4,7 @@ selectorLabel: "hs-router"
 
 
 service:
-  nodePort: 30900
+  nodePort: 30007
   httpPort: 8080
 
 containers:
