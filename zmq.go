@@ -21,7 +21,7 @@ func newZqmHub() *ZmqHub {
 }
 
 // ok
-func (hub *ZmqHub) updateLoop(state *State, duration time.Duration) {
+func (hub *ZmqHub) updateEndpointsLoop(state *State, duration time.Duration) {
 	for range time.Tick(duration) {
 		// fmt.Println(now)
 		id := "ZmqUpdateServices"

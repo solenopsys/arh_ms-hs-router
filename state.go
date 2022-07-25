@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"k8s.io/client-go/kubernetes"
 	"log"
 )
 
@@ -21,6 +22,7 @@ const (
 	WsUpgradeError  // ? нет обработчика
 	WsTryDisconnect
 	WsOnDisconnected // ? нет обработчика
+	UpdateConfigMap
 )
 
 func (me CommandType) String() string {
@@ -100,7 +102,15 @@ func printMap(s string, m map[string]uint16) {
 	println(s, string(bs))
 }
 
-func newState(zmq *ZmqHub, ws *WsHub, routing *RoutingMap) *State {
+func convertEndpoints(endpointsKeys map[string]string, services map[string]uint16) map[string]uint16 {
+	res := make(map[string]uint16)
+	for key, serviceName := range endpointsKeys {
+		res[key] = services[serviceName]
+	}
+	return res
+}
+
+func newState(zmq *ZmqHub, ws *WsHub, routing *RoutingMap, kubeClient *kubernetes.Clientset) *State {
 	state := State{
 		command:      make(chan *Command, 256),
 		messages:     make(chan *MessageWrapper, 256),
@@ -116,20 +126,19 @@ func newState(zmq *ZmqHub, ws *WsHub, routing *RoutingMap) *State {
 
 	state.commandsFunc[ZmqUpdateServices] = []CommandProcessingFunc{
 		func(command Command) {
-			var services map[string]uint16
-			var endpoints map[string]uint16
-			if devMode {
-				services, endpoints = getEndpointsDeveloperMode()
-			} else {
-				services, endpoints = getEndpoints()
-			}
+			endpointsKeys := getEndpoints(kubeClient)
+			services := getHsMapping(kubeClient)
 			printMap("SERVICES ", services)
 			state.services = services
-			printMap("ENDPOINTS ", endpoints)
+			endpoints := convertEndpoints(endpointsKeys, services)
+			printMap("ENDPOINTS KEYS", endpoints)
 			state.endpoints = endpoints
-
 			zmq.syncEndpoints(&state)
+		}}
 
+	state.commandsFunc[UpdateConfigMap] = []CommandProcessingFunc{
+		func(command Command) {
+			updateConfigMap(kubeClient)
 		}}
 	state.commandsFunc[ZmqTryConnect] = []CommandProcessingFunc{
 		func(command Command) { zmq.tryConnectProcessing(&state, command.key) }}

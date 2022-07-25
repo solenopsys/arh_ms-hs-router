@@ -8,16 +8,16 @@ helm_build_push(){
   FN=${NAME}-${VER}.tgz
   rm ${FN}
   helm package ./install --version ${VER}
-  curl --data-binary "@${FN}" http://helm.local/api/charts
+  curl --data-binary "@${FN}" http://helm.alexstorm.solenopsys.org/api/charts
 }
 
-REGISTRY=registry.local
+REGISTRY=registry.alexstorm.solenopsys.org
 NAME=hs-router
-ARCHS="linux/amd64,linux/arm64,linux/386"
-VER=0.1.10
+ARCHS="linux/amd64,linux/arm64"
+VER=0.1.11
 
 
-#helm_build_push
+helm_build_push
 build_push
 
 
