@@ -10,7 +10,7 @@ service:
 containers:
   router:
     name: router
-    image: registry.local/hs-router
+    image: registry.alexstorm.solenopsys.org/alexstorm-hsm-router
     pullPolicy: Always
     httpPort: 8080
     httpHost: "0.0.0.0"

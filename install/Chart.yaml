@@ -1,6 +1,6 @@
 apiVersion: v2
-name: hs-router
-version: 0.1.8
+name: alexstorm-hsm-router
+version: 0.1.15
 description: Router hStreams
 icon: "http://alexstorm.solenopsys.org/apps/assets/hStream.svg"
 

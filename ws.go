@@ -32,6 +32,8 @@ func (wsHub *WsHub) tryConnectionProcessing(state *State, w http.ResponseWriter,
 	if token != "" {
 		userId, err := getAuth(token)
 		if err == nil {
+			setCorsHeaders(w)
+			//responseHeader http.Header https://pkg.go.dev/github.com/gorilla/websocket#hdr-Origin_Considerations
 			connection, err := upgrader.Upgrade(w, r, nil)
 			var id = connection.RemoteAddr().String()
 			if err != nil {

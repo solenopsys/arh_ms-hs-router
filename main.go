@@ -23,7 +23,11 @@ var port = os.Getenv("server.Port")
 var nodesPort = os.Getenv("nodes.Port")
 var address = host + ":" + port
 var addr = flag.String("addr", address, "http service address")
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true //todo domains politic
+	},
+}
 
 func setCorsHeaders(w http.ResponseWriter) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -80,7 +84,7 @@ func main() {
 
 	http.HandleFunc("/info", getInfo(&state.services))
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		setCorsHeaders(w)
+
 		wsHub.tryConnectionProcessing(state, w, r)
 	})
 	log.Fatal(http.ListenAndServe(*addr, nil))
