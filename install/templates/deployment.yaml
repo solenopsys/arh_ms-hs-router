@@ -7,11 +7,13 @@ spec:
   selector:
     matchLabels:
       app: {{ .Values.selectorLabel }}
+
   template:
     metadata:
       labels:
         app: {{ .Values.selectorLabel }}
     spec:
+      serviceAccountName: {{ .Values.containers.router.serviceAccount }}
       containers:
         - name:  {{ .Values.containers.router.name}}
           image:  {{ .Values.containers.router.image}}

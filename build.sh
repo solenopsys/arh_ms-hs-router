@@ -14,7 +14,7 @@ helm_build_push(){
 REGISTRY=registry.alexstorm.solenopsys.org
 NAME=alexstorm-hsm-router
 ARCHS="linux/amd64,linux/arm64"
-VER=0.1.15
+VER=0.1.18
 
 
 helm_build_push

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"math/rand"
+	"strconv"
 )
 
 type RoutingMap struct {
@@ -32,7 +33,7 @@ func getRandomServiceConnectionByType(connectionsMap map[uint16][]string, servic
 
 func (routingMap *RoutingMap) wsMessageProcessing(messageWrapper *MessageWrapper, state *State) {
 	println("PACK MESSAGE")
-	println(messageWrapper.body)
+	println(string(messageWrapper.body))
 	var id = messageWrapper.meta.streamId
 
 	if _, has := routingMap.wsConnections[id]; !has { //todo возврать ошибки если подключено к другому
@@ -42,6 +43,7 @@ func (routingMap *RoutingMap) wsMessageProcessing(messageWrapper *MessageWrapper
 	if conn, has := routingMap.zmqConnections[id]; has { //todo возврать ошибки если подключено к другому
 		state.messages <- &MessageWrapper{body: messageWrapper.body, messageType: ZmqOutput, key: conn, meta: messageWrapper.meta}
 	} else {
+		println("SERVICE ID: " + strconv.Itoa(int(messageWrapper.meta.serviceId)))
 		serviceType := messageWrapper.meta.serviceId
 		randomZmqConnection, err := getRandomServiceConnectionByType(routingMap.zmqConnectionsByTypes, serviceType)
 		if err == nil {

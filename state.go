@@ -110,6 +110,18 @@ func convertEndpoints(endpointsKeys map[string]string, services map[string]uint1
 	return res
 }
 
+func getHsMappingLocal() map[string]uint16 {
+	return map[string]uint16{
+		"installer": 1,
+	}
+}
+
+func getEndpointsLocal() map[string]string {
+	return map[string]string{
+		"tcp://192.168.122.29:5561": "installer",
+	}
+}
+
 func newState(zmq *ZmqHub, ws *WsHub, routing *RoutingMap, kubeClient *kubernetes.Clientset) *State {
 	state := State{
 		command:      make(chan *Command, 256),
@@ -126,8 +138,15 @@ func newState(zmq *ZmqHub, ws *WsHub, routing *RoutingMap, kubeClient *kubernete
 
 	state.commandsFunc[ZmqUpdateServices] = []CommandProcessingFunc{
 		func(command Command) {
-			endpointsKeys := getEndpoints(kubeClient)
-			services := getHsMapping(kubeClient)
+			var endpointsKeys map[string]string
+			if endpointsKeys = getEndpoints(kubeClient); devMode {
+				endpointsKeys = getEndpointsLocal()
+			}
+			var services map[string]uint16
+			if services = getHsMapping(kubeClient); devMode {
+				services = getHsMappingLocal()
+			}
+
 			printMap("SERVICES ", services)
 			state.services = services
 			endpoints := convertEndpoints(endpointsKeys, services)
