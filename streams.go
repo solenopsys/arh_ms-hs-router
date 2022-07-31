@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"k8s.io/klog/v2"
 	"math/rand"
 	"strconv"
 )
@@ -20,7 +21,7 @@ func newRouting() *RoutingMap {
 	}
 }
 
-func getRandomServiceConnectionByType(connectionsMap map[uint16][]string, serviceType uint16) (string, error) {
+func getRandomServiceConnectionByType(connectionsMap map[uint16][]string, serviceType uint16, state *State) (string, error) {
 	services := connectionsMap[serviceType]
 	size := len(services)
 	if size > 0 {
@@ -32,8 +33,8 @@ func getRandomServiceConnectionByType(connectionsMap map[uint16][]string, servic
 }
 
 func (routingMap *RoutingMap) wsMessageProcessing(messageWrapper *MessageWrapper, state *State) {
-	println("PACK MESSAGE")
-	println(string(messageWrapper.body))
+	klog.Infof("PACK MESSAGE")
+	klog.Infof(string(messageWrapper.body))
 	var id = messageWrapper.meta.streamId
 
 	if _, has := routingMap.wsConnections[id]; !has { //todo возврать ошибки если подключено к другому
@@ -43,14 +44,15 @@ func (routingMap *RoutingMap) wsMessageProcessing(messageWrapper *MessageWrapper
 	if conn, has := routingMap.zmqConnections[id]; has { //todo возврать ошибки если подключено к другому
 		state.messages <- &MessageWrapper{body: messageWrapper.body, messageType: ZmqOutput, key: conn, meta: messageWrapper.meta}
 	} else {
-		println("SERVICE ID: " + strconv.Itoa(int(messageWrapper.meta.serviceId)))
+		klog.Infof("SERVICE ID: " + strconv.Itoa(int(messageWrapper.meta.serviceId)))
 		serviceType := messageWrapper.meta.serviceId
-		randomZmqConnection, err := getRandomServiceConnectionByType(routingMap.zmqConnectionsByTypes, serviceType)
+		randomZmqConnection, err := getRandomServiceConnectionByType(routingMap.zmqConnectionsByTypes, serviceType, state)
 		if err == nil {
 			routingMap.zmqConnections[id] = randomZmqConnection
 			state.messages <- &MessageWrapper{body: messageWrapper.body, messageType: ZmqOutput, key: randomZmqConnection, meta: messageWrapper.meta}
 		} else {
-			state.messages <- &MessageWrapper{body: []byte("ENDPOINT_NOT_FOUND"), messageType: WsOutput, key: messageWrapper.key, meta: messageWrapper.meta}
+			body := append(messageWrapper.body[:8], []byte("ENDPOINT_NOT_FOUND")...)
+			state.messages <- &MessageWrapper{body: body, messageType: WsOutput, key: messageWrapper.key, meta: messageWrapper.meta}
 		}
 	}
 }
@@ -77,8 +79,12 @@ func removeIndex(s []string, index int) []string {
 
 func (routingMap *RoutingMap) sendCloseEvent(streamsIds []uint32, state *State) {
 	for _, id := range streamsIds {
-		println("CLOSE EVENT SEND")
+		klog.Infof("CLOSE EVENT SEND")
 		connection := routingMap.wsConnections[id]
+
+		state.incStat("EndpointDisconnected")
+
+		// todo реализовать body := append(messageWrapper.body[:8], []byte("ENDPOINT_NOT_FOUND")...)
 		state.messages <- &MessageWrapper{body: []byte("ENDPOINT_CLOSED_CONNECTION"), messageType: WsOutput, key: connection}
 	}
 }
@@ -90,6 +96,7 @@ func (routingMap *RoutingMap) removeStreamsByZmq(zmeEndpoint string, state *Stat
 			streamsIds = append(streamsIds, id)
 		}
 	}
+
 	routingMap.sendCloseEvent(streamsIds, state)
 	routingMap.removeStreamsByIds(streamsIds)
 	routingMap.removeEndpoint(zmeEndpoint)

@@ -3,9 +3,8 @@ package main
 import (
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"k8s.io/client-go/kubernetes"
-	"log"
+	"k8s.io/klog/v2"
 )
 
 type CommandType int8
@@ -88,6 +87,8 @@ type MessageProcessingFunc func(message MessageWrapper)
 type State struct {
 	command      chan *Command
 	messages     chan *MessageWrapper
+	statPipe     chan string
+	statistic    map[string]uint16
 	services     map[string]uint16
 	endpoints    map[string]uint16
 	commandsFunc map[CommandType][]CommandProcessingFunc
@@ -97,9 +98,8 @@ type State struct {
 
 func printMap(s string, m map[string]uint16) {
 	bs, _ := json.Marshal(m)
-	fmt.Println()
 
-	println(s, string(bs))
+	klog.Infof(s, string(bs))
 }
 
 func convertEndpoints(endpointsKeys map[string]string, services map[string]uint16) map[string]uint16 {
@@ -112,13 +112,13 @@ func convertEndpoints(endpointsKeys map[string]string, services map[string]uint1
 
 func getHsMappingLocal() map[string]uint16 {
 	return map[string]uint16{
-		"installer": 1,
+		"alexstorm-hsm-installer": 1,
 	}
 }
 
 func getEndpointsLocal() map[string]string {
 	return map[string]string{
-		"tcp://192.168.122.29:5561": "installer",
+		"tcp://192.168.122.29:5561": "alexstorm-hsm-installer",
 	}
 }
 
@@ -126,7 +126,9 @@ func newState(zmq *ZmqHub, ws *WsHub, routing *RoutingMap, kubeClient *kubernete
 	state := State{
 		command:      make(chan *Command, 256),
 		messages:     make(chan *MessageWrapper, 256),
+		statPipe:     make(chan string, 256),
 		services:     make(map[string]uint16),
+		statistic:    make(map[string]uint16),
 		endpoints:    make(map[string]uint16),
 		commandsFunc: make(map[CommandType][]CommandProcessingFunc),
 		messageFunc:  make(map[MessageType]MessageProcessingFunc),
@@ -157,7 +159,7 @@ func newState(zmq *ZmqHub, ws *WsHub, routing *RoutingMap, kubeClient *kubernete
 
 	state.commandsFunc[UpdateConfigMap] = []CommandProcessingFunc{
 		func(command Command) {
-			updateConfigMap(kubeClient)
+			updateConfigMap(kubeClient, &state)
 		}}
 	state.commandsFunc[ZmqTryConnect] = []CommandProcessingFunc{
 		func(command Command) { zmq.tryConnectProcessing(&state, command.key) }}
@@ -197,7 +199,7 @@ func (s *State) commandProcessor() {
 	for {
 		command := <-s.command
 
-		log.Println("COMMAND:", command.messageType, command.key)
+		klog.Infof("COMMAND:", command.messageType, command.key)
 
 		if commandFuncs, ok := s.commandsFunc[command.messageType]; ok {
 			for _, commandFunc := range commandFuncs {
@@ -207,10 +209,29 @@ func (s *State) commandProcessor() {
 	}
 }
 
+func (s *State) statProcessor() {
+	for {
+		key := <-s.statPipe
+		klog.Infof("ADD STAT:", key)
+
+		if currentValue, ok := s.statistic[key]; ok {
+			s.statistic[key] = currentValue + 1
+		} else {
+			s.statistic[key] = 1
+		}
+
+		klog.Infof("STAT CURRENT:", s)
+	}
+}
+
+func (s *State) incStat(val string) {
+	s.statPipe <- val
+}
+
 func (s *State) messageProcessor() {
 	for {
 		message := <-s.messages
-		log.Println("MESSAGE:", message.messageType, message.key)
+		klog.Infof("MESSAGE:", message.messageType, message.key)
 		if messageFunc, ok := s.messageFunc[message.messageType]; ok {
 			messageFunc(*message)
 		}

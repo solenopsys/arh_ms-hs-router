@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-zeromq/zmq4"
-	"log"
+	"k8s.io/klog/v2"
 	"time"
 )
 
@@ -72,7 +72,7 @@ func (hub *ZmqHub) tryConnectProcessing(state *State, endpoint string) {
 	dealer := zmq4.NewDealer(context.Background(), zmq4.WithID(id))
 	err := dealer.Dial(endpoint)
 	if err != nil {
-		log.Print("dealer %d failed to dial: %v", i, err) // todo обработка ошибки
+		klog.Error("dealer %d failed to dial: %v", i, err) // todo обработка ошибки
 	} else {
 		hub.connected[endpoint] = &dealer
 		state.command <- &Command{key: endpoint, messageType: ZmqOnConnected}
@@ -80,7 +80,6 @@ func (hub *ZmqHub) tryConnectProcessing(state *State, endpoint string) {
 
 }
 
-//ok
 func (hub *ZmqHub) onConnectProcessing(state *State, endpoint string) {
 
 	//todo сюда
@@ -95,13 +94,12 @@ func (hub *ZmqHub) sendToZmqMessageProcessing(endpoint string, binaryMessage []b
 	(*con).Send(msg)
 }
 
-//ok
 func (hub *ZmqHub) zmqInMessageProcessing(state *State, endpoint string) { // @todo сделать контекст.
 	for {
 		con := hub.connected[endpoint]
 		request, err := (*con).Recv()
 		if err != nil {
-			log.Print(err)
+			klog.Error(err)
 			state.command <- &Command{key: endpoint, messageType: ZmqOnDisconnected}
 			break
 		}

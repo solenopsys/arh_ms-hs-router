@@ -21,7 +21,7 @@ func getEndpoints(clientset *kubernetes.Clientset) map[string]string {
 
 	pods, err := clientset.CoreV1().Pods("default").List(context.Background(), v1.ListOptions{LabelSelector: "type=hStreamNode"})
 	if err != nil {
-		fmt.Printf("error getting pods: %v\n", err)
+		klog.Error("error getting pods: %v\n", err)
 	}
 	for _, pod := range pods.Items {
 		ip := pod.Status.PodIP
@@ -100,7 +100,7 @@ func convertMapToInt(stringMap map[string]string) map[string]uint16 {
 	for key, value := range stringMap {
 		parseUint, err := strconv.ParseUint(value, 10, 16)
 		if err != nil {
-			fmt.Printf("Error parce integer: %v\n", err)
+			klog.Error("Error parce integer: %v\n", err)
 		} else {
 			numberMap[key] = uint16(parseUint)
 		}
@@ -116,7 +116,7 @@ func convertMapToString(numberMap map[string]uint16) map[string]string {
 	return stringMap
 }
 
-func changeConfigMap(clientSet *kubernetes.Clientset, endpoints map[string]string) error {
+func changeConfigMap(clientSet *kubernetes.Clientset, endpoints map[string]string, s *State) error {
 
 	configMapData := make(map[string]string, 0)
 
@@ -140,6 +140,8 @@ func changeConfigMap(clientSet *kubernetes.Clientset, endpoints map[string]strin
 		if changed {
 			configMap.Data = convertMapToString(changedData)
 			clientSet.CoreV1().ConfigMaps(ns).Create(ctx, &configMap, metav1.CreateOptions{})
+
+			s.incStat("ChangingHsMapping")
 		}
 	} else {
 		data := beforeMap.Data
@@ -148,6 +150,7 @@ func changeConfigMap(clientSet *kubernetes.Clientset, endpoints map[string]strin
 		if changed {
 			configMap.Data = convertMapToString(changedData)
 			clientSet.CoreV1().ConfigMaps(ns).Update(ctx, &configMap, metav1.UpdateOptions{})
+			s.incStat("ChangingHsMapping")
 		}
 	}
 	return nil
@@ -158,7 +161,7 @@ func getHsMapping(clientset *kubernetes.Clientset) map[string]uint16 {
 	ctx := context.TODO()
 	maps, err := clientset.CoreV1().ConfigMaps("default").Get(ctx, "hs-mapping", metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("error getting maps: %v\n", err)
+		klog.Error("error getting maps: %v\n", err)
 	}
 
 	return convertMapToInt(maps.Data)
@@ -176,14 +179,14 @@ func configMapUpdateNeeded(clientset *kubernetes.Clientset) bool {
 	return false
 }
 
-func updateConfigMap(clientset *kubernetes.Clientset) {
+func updateConfigMap(clientset *kubernetes.Clientset, s *State) {
 	updateNeeded := configMapUpdateNeeded(clientset)
 	if updateNeeded {
 		run := func(ctx context.Context) {
 			endpoints := getEndpoints(clientset)
-			err := changeConfigMap(clientset, endpoints)
+			err := changeConfigMap(clientset, endpoints, s)
 			if err != nil {
-				klog.Info("ERROR CHANGE CONFIG...")
+				klog.Error("ERROR CHANGE CONFIG...", err)
 			}
 		}
 

@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gorilla/websocket"
-	"log"
+	"k8s.io/klog/v2"
 	"net/http"
 )
 
@@ -26,20 +25,22 @@ func getAuth(token string) (uint16, error) {
 	return 1, nil
 }
 
-//ok
 func (wsHub *WsHub) tryConnectionProcessing(state *State, w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token != "" {
 		userId, err := getAuth(token)
 		if err == nil {
 			setCorsHeaders(w)
-			//responseHeader http.Header https://pkg.go.dev/github.com/gorilla/websocket#hdr-Origin_Considerations
 			connection, err := upgrader.Upgrade(w, r, nil)
 			var id = connection.RemoteAddr().String()
 			if err != nil {
-				log.Print("upgrade:", err) //todo обработать ошибку
+				klog.Error("Wpgrade ws:", err)
 				state.command <- &Command{key: id, messageType: WsUpgradeError}
+
+				state.incStat("WsUpgradeError")
 			}
+
+			state.incStat("NewWsConnection")
 
 			wsHub.clients[id] = &WSConnect{userId: userId, connection: connection}
 			state.command <- &Command{key: id, messageType: WsOnConnected}
@@ -51,37 +52,33 @@ func (wsHub *WsHub) tryConnectionProcessing(state *State, w http.ResponseWriter,
 
 }
 
-//ok
 func (wsHub *WsHub) onConnectProcessing(state *State, endpoint string) {
 	go wsHub.wsInMessageProcessing(state, endpoint)
 	state.command <- &Command{key: endpoint, messageType: WsOnInitialized}
 }
 
-//ok
 func (wsHub *WsHub) tryDisconnectProcessing(state *State, key string) {
 	if client, ok := wsHub.clients[key]; ok {
 		delete(wsHub.clients, key)
 		err := client.connection.Close()
 		if err != nil {
-			log.Println("read:", err) //todo обработать
+			klog.Error("Disconnect error:", err)
 		} else {
 			state.command <- &Command{key: key, messageType: WsOnDisconnected}
 		}
 	}
 }
 
-//ok
 func (wsHub *WsHub) wsInMessageProcessing(state *State, key string) { //todo обработать отключение через контекст.
 	conn := wsHub.clients[key]
 	for {
-		mt, message, err := conn.connection.ReadMessage()
+		_, message, err := conn.connection.ReadMessage()
 		if err != nil {
-			log.Println("read:", err)
+			klog.Error("Read message error:", err)
 			state.command <- &Command{key: key, messageType: WsOnDisconnected}
 			break
 		}
-		log.Println("mt:", mt) //todo убрать мусор
-		fmt.Println(string(message))
+		klog.Infof("Ws in мessage:", string(message))
 		state.messages <- &MessageWrapper{body: message, userId: conn.userId, key: key, messageType: WsInput}
 	}
 }
@@ -91,7 +88,7 @@ func (wsHub *WsHub) sendToWsMessageProcessing(key string, body []byte) {
 	if conn != nil {
 		err := conn.connection.WriteMessage(websocket.BinaryMessage, body)
 		if err != nil {
-			log.Println("read:", err) //todo обработать
+			klog.Error("read:", err)
 		}
 	}
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/gorilla/websocket"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -38,11 +37,11 @@ func getCubeConfig(devMode bool) (*rest.Config, error) {
 	if devMode {
 		var kubeconfigFile = os.Getenv("kubeconfigPath")
 		kubeConfigPath := filepath.Join(kubeconfigFile)
-		fmt.Printf("Using kubeconfig: %s\n", kubeConfigPath)
+		klog.Infof("Using kubeconfig: %s\n", kubeConfigPath)
 
 		kubeConfig, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)
 		if err != nil {
-			fmt.Printf("error getting Kubernetes config: %v\n", err)
+			klog.Error("error getting Kubernetes config: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -66,8 +65,8 @@ func updateConfigMapLoop(state *State, duration time.Duration) {
 }
 
 func main() {
-	println("START")
-	println("DEV MODE ", devMode)
+	klog.Infof("START")
+	klog.Infof("DEV MODE ", devMode)
 
 	forConfig := createKubeConfig()
 
@@ -77,12 +76,14 @@ func main() {
 	routing := newRouting()
 	state := newState(zmqHub, wsHub, routing, forConfig)
 
+	go state.statProcessor()
 	go state.commandProcessor()
 	go state.messageProcessor()
 	go zmqHub.updateEndpointsLoop(state, 10*time.Second)
 	go updateConfigMapLoop(state, 120*time.Second)
 
 	http.HandleFunc("/info", getInfo(&state.services))
+	http.HandleFunc("/stat", getStat(state, routing))
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 
 		wsHub.tryConnectionProcessing(state, w, r)
