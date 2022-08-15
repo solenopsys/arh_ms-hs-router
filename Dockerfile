@@ -11,8 +11,6 @@ RUN go mod download
 
 COPY *.go ./
 
-RUN GOOS=linux GOARCH=$TARGETARCH go build -o /hStream-router
-
 RUN GOOS=linux GOARCH=$TARGETARCH go build  -o /go-binary
 
 CMD [ "/go-binary" ]

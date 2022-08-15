@@ -22,3 +22,10 @@ spec:
               name:  {{ .Values.fullName }}
               port:
                 number: {{ .Values.service.httpPort }}
+        - path: /stat
+          pathType: ImplementationSpecific
+          backend:
+            service:
+              name:  {{ .Values.fullName }}
+              port:
+                number: {{ .Values.service.httpPort }}
