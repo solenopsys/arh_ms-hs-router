@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"k8s.io/klog/v2"
 	"net/http"
+	"sort"
 )
 
 func SetCorsHeaders(w http.ResponseWriter) {
@@ -19,4 +20,8 @@ func PrintMap(s string, m map[string]uint16) {
 
 func RemoveIndex(s []string, index int) []string {
 	return append(s[:index], s[index+1:]...)
+}
+
+func SortUint32(a []uint32) {
+	sort.Slice(a, func(i, j int) bool { return a[i] < a[j] })
 }

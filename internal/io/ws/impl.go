@@ -11,72 +11,60 @@ type Connection struct {
 }
 
 type Hub struct {
-	connections map[string]*Connection
-	commands    chan *Command
-	events      chan *Event
-	input       chan *Message
-	output      chan *Message
+	Connections map[string]*Connection
+	Commands    chan *Command
+	Events      chan *Event
+	Input       chan *Message
+	Output      chan *Message
 }
 
-func NewHub() *Hub {
-	var hub = Hub{
-		connections: make(map[string]*Connection),
-		commands:    make(chan *Command, 256),
-		events:      make(chan *Event, 256),
-		input:       make(chan *Message, 256),
-		output:      make(chan *Message, 256),
-	}
-	go hub.sendToWsMessageProcessing()
-	return &hub
+func (hub Hub) GetEvents() chan *Event {
+	return hub.Events
 }
 
-func (hub Hub) Events() chan *Event {
-	return hub.events
+func (hub Hub) GetCommands() chan *Command {
+	return hub.Commands
 }
 
-func (hub Hub) Commands() chan *Command {
-	return hub.commands
+func (hub Hub) GetInput() chan *Message {
+	return hub.Input
 }
 
-func (hub Hub) Input() chan *Message {
-	return hub.input
-}
-
-func (hub Hub) Output() chan *Message {
-	return hub.output
+func (hub Hub) GetOutput() chan *Message {
+	return hub.Output
 }
 
 func (wsHub Hub) AddConnection(connection *websocket.Conn, userId uint16) {
 	var id = connection.RemoteAddr().String()
-	wsHub.connections[id] = &Connection{userId: userId, connection: connection}
+	wsHub.Connections[id] = &Connection{userId: userId, connection: connection}
 
 	go wsHub.WsInMessageProcessing(id)
-	wsHub.events <- &Event{Key: id, EventType: OnConnected}
+	wsHub.Events <- &Event{Key: id, EventType: OnConnected}
 }
 
 func (wsHub Hub) TryDisconnectProcessing(Key string) {
-	if client, ok := wsHub.connections[Key]; ok {
-		delete(wsHub.connections, Key)
+	if client, ok := wsHub.Connections[Key]; ok {
+		delete(wsHub.Connections, Key)
 		err := client.connection.Close()
 		if err != nil {
 			klog.Error("Disconnect error:", err)
 		} else {
-			wsHub.events <- &Event{Key: Key, EventType: OnDisconnected}
+			wsHub.Events <- &Event{Key: Key, EventType: OnDisconnected}
 		}
 	}
 }
 
 func (wsHub Hub) WsInMessageProcessing(key string) { //todo обработать отключение через контекст.
-	conn := wsHub.connections[key]
+	conn := wsHub.Connections[key]
 	for {
 		_, message, err := conn.connection.ReadMessage()
 		if err != nil {
 			klog.Error("Read message error:", err)
-			wsHub.events <- &Event{Key: key, EventType: OnDisconnected}
+			wsHub.Events <- &Event{Key: key, EventType: OnDisconnected}
 			break
 		}
 		klog.Infof("Ws in мessage:", string(message))
-		wsHub.input <- &Message{
+		wsHub.Input <- &Message{
 			Message:       message,
 			ConnectionKey: key,
 			User:          conn.userId,
@@ -85,15 +73,15 @@ func (wsHub Hub) WsInMessageProcessing(key string) { //todo обработать
 	}
 }
 
-func (wsHub Hub) sendToWsMessageProcessing() {
+func (wsHub Hub) SendToWsMessageProcessing() {
 	for {
-		message := <-wsHub.output
+		message := <-wsHub.Output
 		wsHub.sendToWsMessage(message.ConnectionKey, message.Message)
 	}
 }
 
 func (wsHub Hub) sendToWsMessage(Key string, body []byte) {
-	conn := wsHub.connections[Key]
+	conn := wsHub.Connections[Key]
 	if conn != nil {
 		err := conn.connection.WriteMessage(websocket.BinaryMessage, body)
 		if err != nil {

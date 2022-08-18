@@ -7,40 +7,44 @@ import (
 )
 
 type MessagesBridge struct {
-	wsHub     ws.IO
-	zmqHub    zmq.IO
-	router    *Routing
-	statistic *utils.Statistic
+	WsHub     ws.IO
+	ZmqHub    zmq.IO
+	Router    *Routing
+	Statistic *utils.Statistic
 }
 
-func (cd MessagesBridge) init() {
+func (cd MessagesBridge) Init() {
 	go cd.wsToZmqConveyor()
 	go cd.zmqToWsConveyor()
 }
 
+func (cd MessagesBridge) stat(message string) {
+	if cd.Statistic != nil {
+		cd.Statistic.Increment <- message
+	}
+}
+
 func (cd MessagesBridge) wsToZmqConveyor() {
 	for {
-		srcMessage := <-cd.wsHub.Input()
-		pack := MessagePackage{raw: srcMessage.Message, UserId: srcMessage.User, ConnectionKey: srcMessage.ConnectionKey}
+		srcMessage := <-cd.WsHub.GetInput()
+		pack := MessagePackage{Raw: srcMessage.Message, UserId: srcMessage.User, Key: srcMessage.ConnectionKey}
 		if pack.IsFirst() {
-			stream, result := cd.router.wsRouteNew(&pack)
+			stream, result := cd.Router.WsRouteNew(&pack)
 			if result == Ok {
-				cd.statistic.Increment <- "FirstWsMessageOk"
-				cd.zmqHub.Output() <- &zmq.Message{Message: pack.userInjectedBody(), Endpoint: stream.zmqEndpoint}
+				cd.stat("FirstWsMessageOk")
+				cd.ZmqHub.GetOutput() <- &zmq.Message{Message: pack.UserInjectedBody(), Endpoint: stream.ZmqEndpoint}
 			} else {
-				cd.statistic.Increment <- "FirstWsMessageErr"
-				cd.statistic.Increment <- result.String()
-				cd.wsHub.Output() <- &ws.Message{Message: pack.errorResponseBody(result.String()), ConnectionKey: srcMessage.ConnectionKey}
+				cd.stat("FirstWsMessageErr-" + result.String())
+				cd.WsHub.GetOutput() <- &ws.Message{Message: pack.ErrorResponseBody(result.String()), ConnectionKey: srcMessage.ConnectionKey}
 			}
 		} else {
-			stream, result := cd.router.wsRoute(&pack)
+			stream, result := cd.Router.WsRoute(&pack)
 			if result == Ok {
-				cd.statistic.Increment <- "SecondWsMessageOk"
-				cd.zmqHub.Output() <- &zmq.Message{Message: pack.raw, Endpoint: stream.zmqEndpoint}
+				cd.stat("SecondWsMessageOk")
+				cd.ZmqHub.GetOutput() <- &zmq.Message{Message: pack.Raw, Endpoint: stream.ZmqEndpoint}
 			} else {
-				cd.statistic.Increment <- "SecondWsMessageErr"
-				cd.statistic.Increment <- result.String()
-				cd.wsHub.Output() <- &ws.Message{Message: pack.errorResponseBody(result.String()), ConnectionKey: srcMessage.ConnectionKey}
+				cd.stat("SecondWsMessageErr-" + result.String())
+				cd.WsHub.GetOutput() <- &ws.Message{Message: pack.ErrorResponseBody(result.String()), ConnectionKey: srcMessage.ConnectionKey}
 			}
 		}
 	}
@@ -48,17 +52,16 @@ func (cd MessagesBridge) wsToZmqConveyor() {
 
 func (cd MessagesBridge) zmqToWsConveyor() {
 	for {
-		srcMessage := <-cd.zmqHub.Input()
-		pack := MessagePackage{raw: srcMessage.Message, ConnectionKey: srcMessage.Endpoint}
+		srcMessage := <-cd.ZmqHub.GetInput()
+		pack := MessagePackage{Raw: srcMessage.Message, Key: srcMessage.Endpoint}
 
-		stream, result := cd.router.zqmRoute(&pack)
+		stream, result := cd.Router.ZqmRoute(&pack)
 		if result == Ok {
-			cd.statistic.Increment <- "ZmqMessageOk"
-			cd.wsHub.Output() <- &ws.Message{Message: pack.userInjectedBody(), ConnectionKey: stream.wsEndpoint}
+			cd.stat("ZmqMessageOk")
+			cd.WsHub.GetOutput() <- &ws.Message{Message: pack.UserInjectedBody(), ConnectionKey: stream.WsEndpoint}
 		} else {
-			cd.statistic.Increment <- "ZmqMessageErr"
-			cd.statistic.Increment <- result.String()
-			cd.zmqHub.Output() <- &zmq.Message{Message: pack.errorResponseBody(result.String()), Endpoint: srcMessage.Endpoint}
+			cd.stat("ZmqMessageErr-" + result.String())
+			cd.ZmqHub.GetOutput() <- &zmq.Message{Message: pack.ErrorResponseBody(result.String()), Endpoint: srcMessage.Endpoint}
 		}
 	}
 }

@@ -1,10 +1,10 @@
 package zmq
 
 type IO interface {
-	Events() chan *Event
-	Commands() chan *Command
-	Input() chan *Message
-	Output() chan *Message
+	GetEvents() chan *Event
+	GetCommands() chan *Command
+	GetInput() chan *Message
+	GetOutput() chan *Message
 	Connected(endpoint string) bool
 	ConnectedList() []string
 }

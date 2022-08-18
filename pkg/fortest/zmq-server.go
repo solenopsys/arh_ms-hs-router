@@ -1,4 +1,4 @@
-package testio
+package fortest
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type ZmqMessage struct {
 	Message []byte
 }
 
-type ZmqServer struct {
+type ZmqMockServer struct {
 	Port   uint16
 	State  ZmqStatus
 	Err    error
@@ -34,15 +34,15 @@ type ZmqServer struct {
 type ZmqServersPool struct {
 	ToHub   chan *ZmqMessage
 	FromHub chan *ZmqMessage
-	Servers map[uint16]*ZmqServer
+	Servers map[uint16]*ZmqMockServer
 }
 
-func newZqmServer() *ZmqServer {
+func newZqmServer() *ZmqMockServer {
 	var wg sync.WaitGroup
-	return &ZmqServer{Wg: wg, State: ZmqNew}
+	return &ZmqMockServer{Wg: wg, State: ZmqNew}
 }
 
-func (server *ZmqServer) openPort(url string, port uint16) {
+func (server *ZmqMockServer) openPort(url string, port uint16) {
 	//server.Wg.Add(1)
 	server.Port = port
 	startFunc := func() {
@@ -67,12 +67,12 @@ func (server *ZmqServer) openPort(url string, port uint16) {
 	startFunc()
 }
 
-func (server *ZmqServer) close() {
+func (server *ZmqMockServer) close() {
 	server.Wg.Done()
 	server.State = ZmqClosed
 }
 
-func (server *ZmqServer) listen(pipe chan *ZmqMessage) {
+func (server *ZmqMockServer) listen(pipe chan *ZmqMessage) {
 	for true {
 		request, err := (server.router).Recv()
 		if err != nil {
@@ -88,7 +88,7 @@ func (server *ZmqServer) listen(pipe chan *ZmqMessage) {
 	}
 }
 
-func (server *ZmqServer) send(message *ZmqMessage) {
+func (server *ZmqMockServer) send(message *ZmqMessage) {
 	msg := zmq4.NewMsgFrom(message.Address, message.Message)
 	err := (server.router).Send(msg)
 	if err != nil {
@@ -97,11 +97,10 @@ func (server *ZmqServer) send(message *ZmqMessage) {
 	}
 }
 
-func (pool *ZmqServersPool) CreateServer(url string, port uint16) *ZmqServer {
+func (pool *ZmqServersPool) CreateServer(url string, port uint16) *ZmqMockServer {
 	server := newZqmServer()
 	server.openPort(url, port)
 	go server.listen(pool.FromHub)
-
 	return server
 }
 
@@ -124,13 +123,5 @@ func (pool *ZmqServersPool) sendLoop() {
 		message := <-pool.ToHub
 		println("TO HUB MESSAGE")
 		pool.sendMessage(message)
-	}
-}
-
-func NewTestZmqPool() *ZmqServersPool {
-	return &ZmqServersPool{
-		FromHub: make(chan *ZmqMessage, 256),
-		ToHub:   make(chan *ZmqMessage, 256),
-		Servers: make(map[uint16]*ZmqServer),
 	}
 }

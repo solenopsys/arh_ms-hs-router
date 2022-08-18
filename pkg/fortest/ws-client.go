@@ -1,4 +1,4 @@
-package testio
+package fortest
 
 import (
 	"github.com/gorilla/websocket"
@@ -19,7 +19,7 @@ type WsMessage struct {
 	Body     []byte
 }
 
-type WsClient struct {
+type WsMockClient struct {
 	Connection *websocket.Conn
 	ClientId   uint16
 	State      WsStatus
@@ -29,10 +29,10 @@ type WsClient struct {
 type WsClientsPool struct {
 	ToWs              chan *WsMessage
 	FromWs            chan *WsMessage
-	ClientConnections map[uint16]*WsClient
+	ClientConnections map[uint16]*WsMockClient
 }
 
-func (client *WsClient) tryConnection(url string, clientId uint16) error {
+func (client *WsMockClient) tryConnection(url string, clientId uint16) error {
 	var err error
 	client.Connection, _, err = websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
@@ -48,7 +48,7 @@ func (client *WsClient) tryConnection(url string, clientId uint16) error {
 	return err
 }
 
-func (client WsClient) disconnect() {
+func (client WsMockClient) disconnect() {
 	err := client.Connection.Close()
 
 	if err != nil {
@@ -58,7 +58,7 @@ func (client WsClient) disconnect() {
 	}
 }
 
-func (client WsClient) listen(pipe chan *WsMessage) {
+func (client WsMockClient) listen(pipe chan *WsMessage) {
 	for {
 		_, message, err := client.Connection.ReadMessage()
 		if err != nil {
@@ -70,7 +70,7 @@ func (client WsClient) listen(pipe chan *WsMessage) {
 	}
 }
 
-func (client WsClient) sendMessage(message []byte) {
+func (client WsMockClient) sendMessage(message []byte) {
 	log.Print("STATE", client.State)
 	if client.State == Connected {
 		log.Print("MESSAGE WRITE")
@@ -83,8 +83,8 @@ func (client WsClient) sendMessage(message []byte) {
 	}
 }
 
-func (pool WsClientsPool) CreateClient(url string, clientId uint16) (*WsClient, error) {
-	client := NewClient()
+func (pool WsClientsPool) CreateClient(url string, clientId uint16) (*WsMockClient, error) {
+	client := &WsMockClient{State: New}
 	pool.ClientConnections[clientId] = client
 	err := client.tryConnection(url, clientId)
 
@@ -115,18 +115,4 @@ func (pool WsClientsPool) sendLoop() {
 		println("TO MESSAGE")
 		pool.sendMessage(message.ClientId, message.Body)
 	}
-}
-
-func NewClient() *WsClient {
-	return &WsClient{State: New}
-}
-
-func NewTestWsPool() *WsClientsPool {
-	pool := WsClientsPool{
-		FromWs:            make(chan *WsMessage, 256),
-		ToWs:              make(chan *WsMessage, 256),
-		ClientConnections: make(map[uint16]*WsClient),
-	}
-	go pool.sendLoop()
-	return &pool
 }

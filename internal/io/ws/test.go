@@ -2,7 +2,7 @@ package ws
 
 func NewWsHub() *Hub {
 	return &Hub{
-		connections: make(map[string]*Connection),
+		Connections: make(map[string]*Connection),
 	}
 }
 

@@ -13,8 +13,8 @@ import (
 type HttpController struct {
 	WsHub     *ws.Hub
 	Services  func() map[string]uint16
-	Statistic *map[string]uint16
-	Endpoints *map[string]uint16
+	Statistic func() map[string]uint16
+	Endpoints func() map[string]uint16
 }
 
 func (c HttpController) StartServer(prefix string, host string, port string) {
@@ -45,9 +45,9 @@ func (c HttpController) StatisticHandler() func(w http.ResponseWriter, r *http.R
 	return func(w http.ResponseWriter, r *http.Request) {
 		var statMap = map[string]map[string]uint16{}
 
-		statMap["statistic"] = *c.Statistic
+		statMap["statistic"] = c.Statistic()
 		statMap["services"] = c.Services()
-		statMap["endpoints"] = *c.Endpoints
+		statMap["endpoints"] = c.Endpoints()
 		stream := map[string]uint16{}
 		//	stream["stream"] = uint16(len(*c.streams))
 		statMap["streams"] = stream

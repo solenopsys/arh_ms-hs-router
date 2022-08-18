@@ -1,10 +1,10 @@
 package ws
 
 type IO interface {
-	Events() chan *Event
-	Commands() chan *Command
-	Input() chan *Message
-	Output() chan *Message
+	GetEvents() chan *Event
+	GetCommands() chan *Command
+	GetInput() chan *Message
+	GetOutput() chan *Message
 }
 
 type Auth interface {

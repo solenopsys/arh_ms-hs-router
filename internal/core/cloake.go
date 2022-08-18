@@ -44,10 +44,10 @@ package core
 //func (cd Coordinator) syncZmqConnections() bool {
 //	var changed = false
 //
-//	for endpoint, _ := range cd.endpoints.Endpoints() {
+//	for endpoint, _ := range cd.endpoints.EndpointsMap() {
 //		if !cd.zmqHub.Connected(endpoint) {
 //			changed = true
-//			cd.zmqHub.Commands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryConnect}
+//			cd.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryConnect}
 //		}
 //	}
 //
@@ -132,7 +132,67 @@ package core
 //	if err != nil {
 //		klog.Infof("Get data error", err)
 //	} else {
-//		state.Services = services
+//		state.ServicesMap = services
 //		endpoints := convertEndpoints(endpointsKeys, services)
 //	}
 //}
+
+//func (sc ServicesController) unregisterDiff() {
+//	for _, endpoint := range sc.zmqHub.ConnectedList() {
+//		if _, has := sc.conf.endpoints[endpoint]; !has {
+//			sc.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryDisconnect}
+//			sc.removeEndpointFromGroup(endpoint) //todo возможно нужно обрабатывать событие
+//		}
+//	}
+//}
+//
+//func (sc ServicesController) registerDiff() {
+//	for endpoint, _ := range sc.conf.endpoints {
+//		if connected := sc.zmqHub.Connected(endpoint); !connected {
+//			sc.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryConnect}
+//			sc.addEndpointToGroup(endpoint) //todo возможно нужно обрабатывать событие
+//		}
+//	}
+//}
+
+//func (r Routing) removeStreamsByZmq(zmeEndpoint string, message string) { //todo испраивить message на код
+//	for id, streamConfig := range r.Streams {
+//		if streamConfig.ZmqEndpoint == zmeEndpoint {
+//			r.Remove <- &RemoveParam{id, message}
+//		}
+//	}
+//}
+//
+//func (r Routing) removeStreamsByWs(wsEndpoint string, message string) { //todo испраивить message на код
+//	for id, streamConfig := range r.Streams {
+//		if streamConfig.WsEndpoint == wsEndpoint {
+//			r.Remove <- &RemoveParam{id, message}
+//		}
+//	}
+//}
+//	sc.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryDisconnect}
+//			sc.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryConnect}
+
+/*BeforeEach(func() {
+	endpoint = ""
+	services =&core.ServicesController{
+		EndpointsApi: EndpointsMock{},
+		MappingApi:   MappingMock{},
+		ServicesMap:  make(map[string]uint16),
+		EndpointsMap: make(map[string]uint16),
+		Groups:       make(map[uint16][]string),
+		Rand:         func(size int) int { return rand.Intn(size) },
+	}
+})
+
+func printZmqMessages() {
+	for {
+		message := <-model.zmqPool.FromHub
+
+		println("FROM HUB-- -------", string(message.Message))
+		println("PORT", strconv.FormatUint(uint64(message.Port), 10))
+	}
+
+}
+
+*/

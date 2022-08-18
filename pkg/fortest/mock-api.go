@@ -1,4 +1,4 @@
-package testio
+package fortest
 
 import (
 	"net/http"

@@ -4,60 +4,58 @@ import (
 	"errors"
 	"k8s.io/utils/strings/slices"
 	"math/rand"
+	"reflect"
 	"solenopsys.org/zmq_router/internal/io/kube"
-	"solenopsys.org/zmq_router/internal/io/zmq"
-	"solenopsys.org/zmq_router/pkg/utils"
-	"time"
 )
 
-type ServicesConf struct {
-	services  map[string]uint16
-	endpoints map[string]uint16
-	groups    map[uint16][]string
+type Services interface {
+	Services() map[string]uint16
+	Endpoints() map[string]uint16
+	RandomEndpointByType(serviceType uint16) (string, error)
+	SyncEndpoints()
 }
 
 type ServicesController struct {
-	conf         *ServicesConf
-	endpointsApi kube.EndpointsIntf
-	mappingApi   kube.MappingIntf
-	zmqHub       zmq.IO
+	EndpointsApi kube.EndpointsIntf
+	MappingApi   kube.MappingIntf
+	ServicesMap  map[string]uint16
+	EndpointsMap map[string]uint16
+	Groups       map[uint16][]string
 }
 
-func (sc ServicesController) UpdateEndpointsLoop(duration time.Duration) {
-	for range time.Tick(duration) {
-		sc.SyncEndpoints()
-	}
+func (sc *ServicesController) Services() map[string]uint16 {
+	return sc.ServicesMap
+}
+func (sc *ServicesController) Endpoints() map[string]uint16 {
+	return sc.EndpointsMap
 }
 
-func (sc ServicesController) unregisterDiff() {
-	for _, endpoint := range sc.zmqHub.ConnectedList() {
-		if _, has := sc.conf.endpoints[endpoint]; !has {
-			sc.zmqHub.Commands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryDisconnect}
-			sc.removeEndpointFromGroup(endpoint) //todo возможно нужно обрабатывать событие
+func (sc *ServicesController) SyncEndpoints() {
+	var changed = false
+
+	services, mappingError := sc.MappingApi.UpdateMapping()
+	if mappingError == nil {
+		if !reflect.DeepEqual(services, sc.Services) {
+			changed = true
+			sc.ServicesMap = services
 		}
 	}
-}
-
-func (sc ServicesController) registerDiff() {
-	for endpoint, _ := range sc.conf.endpoints {
-		if connected := sc.zmqHub.Connected(endpoint); !connected {
-			sc.zmqHub.Commands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryConnect}
-			sc.addEndpointToGroup(endpoint) //todo возможно нужно обрабатывать событие
+	endpoints, endpointsError := sc.EndpointsApi.UpdateEndpoints()
+	if endpointsError == nil {
+		covertedEndpoints := sc.endpointsMap(endpoints)
+		if !reflect.DeepEqual(covertedEndpoints, sc.Endpoints) {
+			changed = true
+			sc.EndpointsMap = covertedEndpoints
 		}
 	}
+	if changed {
+		sc.Groups = sc.generateGroups()
+	}
+
 }
 
-func (sc ServicesController) SyncEndpoints() {
-
-	endpoints := sc.endpointsApi.Endpoints()
-	sc.conf.services = sc.mappingApi.Mapping()
-	sc.conf.endpoints = convertEndpoints(endpoints, sc.conf.services)
-	sc.registerDiff()
-	sc.unregisterDiff()
-}
-
-func (sc ServicesController) getRandomServiceConnectionByType(serviceType uint16) (string, error) {
-	services := sc.conf.groups[serviceType]
+func (sc *ServicesController) RandomEndpointByType(serviceType uint16) (string, error) {
+	services := sc.Groups[serviceType]
 	size := len(services)
 	if size > 0 {
 		return services[rand.Intn(size)], nil
@@ -66,32 +64,25 @@ func (sc ServicesController) getRandomServiceConnectionByType(serviceType uint16
 	}
 }
 
-func (sc ServicesController) removeEndpointFromGroup(zmeEndpoint string) {
-	for key, endpoints := range sc.conf.groups {
-		for i, endpoint := range endpoints {
-			if endpoint == zmeEndpoint {
-				sc.conf.groups[key] = utils.RemoveIndex(endpoints, i)
-				return
-			}
+func (sc *ServicesController) generateGroups() map[uint16][]string {
+	groups := make(map[uint16][]string)
+	for endpoint, _ := range sc.EndpointsMap {
+		typeId := sc.EndpointsMap[endpoint]
+		if groups[typeId] == nil {
+			groups[typeId] = []string{}
+		}
+		group := groups[typeId]
+		if !slices.Contains(group, endpoint) {
+			groups[typeId] = append(group, endpoint)
 		}
 	}
+	return groups
 }
 
-func (sc ServicesController) addEndpointToGroup(endpoint string) {
-	typeId := sc.conf.endpoints[endpoint]
-	if sc.conf.groups[typeId] == nil {
-		sc.conf.groups[typeId] = []string{}
-	}
-	group := sc.conf.groups[typeId]
-	if !slices.Contains(group, endpoint) {
-		sc.conf.groups[typeId] = append(group, endpoint)
-	}
-}
-
-func convertEndpoints(endpointsKeys map[string]string, services map[string]uint16) map[string]uint16 {
+func (sc *ServicesController) endpointsMap(endpointsKeys map[string]string) map[string]uint16 {
 	res := make(map[string]uint16)
 	for key, serviceName := range endpointsKeys {
-		res[key] = services[serviceName]
+		res[key] = sc.ServicesMap[serviceName]
 	}
 	return res
 }

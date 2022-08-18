@@ -7,26 +7,47 @@ type Direction uint8
 const FirstFrame = uint8(15)
 const OrdinaryFrame = uint8(0)
 
+type MessageInt interface {
+	Stream() uint32
+	Service() uint16
+	State() uint8
+	Function() uint8
+	Body() []byte
+	IsFirst() bool
+	ConnectionKey() string
+}
+
+type MessageRoute interface {
+	Stream() uint32
+	Service() uint16
+	ConnectionKey() string
+	IsFirst() bool
+}
+
 type MessagePackage struct {
-	raw           []byte
-	UserId        uint16
-	ConnectionKey string
+	Raw    []byte
+	UserId uint16
+	Key    string
 }
 
 func (m MessagePackage) Stream() uint32 {
-	return binary.BigEndian.Uint32(m.raw[:4])
+	return binary.BigEndian.Uint32(m.Raw[:4])
 }
 
 func (m MessagePackage) Service() uint16 {
-	return binary.BigEndian.Uint16(m.raw[6:8])
+	return binary.BigEndian.Uint16(m.Raw[6:8])
+}
+
+func (m MessagePackage) ConnectionKey() string {
+	return m.Key
 }
 
 func (m MessagePackage) State() uint8 {
-	return m.raw[4]
+	return m.Raw[4]
 }
 
 func (m MessagePackage) Function() uint8 {
-	return m.raw[5]
+	return m.Raw[5]
 }
 
 func (m MessagePackage) IsFirst() bool {
@@ -35,20 +56,20 @@ func (m MessagePackage) IsFirst() bool {
 
 func (m MessagePackage) Body() []byte {
 	if m.IsFirst() {
-		return m.raw[8:]
+		return m.Raw[8:]
 	} else {
-		return m.raw[6:]
+		return m.Raw[6:]
 	}
 }
 
-func (m MessagePackage) userInjectedBody() []byte {
-	newBody := make([]byte, len(m.raw))
-	copy(newBody, m.raw)
+func (m MessagePackage) UserInjectedBody() []byte {
+	newBody := make([]byte, len(m.Raw))
+	copy(newBody, m.Raw)
 	binary.BigEndian.PutUint16(newBody[6:8], m.UserId)
 	return newBody
 }
 
-func (m MessagePackage) errorResponseBody(errorKey string) []byte {
+func (m MessagePackage) ErrorResponseBody(errorKey string) []byte {
 	header := make([]byte, 6)
 	binary.BigEndian.PutUint32(header[0:4], m.Stream())
 	header[4] = StreamError

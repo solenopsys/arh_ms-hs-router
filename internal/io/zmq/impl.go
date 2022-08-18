@@ -7,55 +7,43 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func NewHub() *Hub {
-	var hub = Hub{
-		connections: make(map[string]*zmq4.Socket),
-		commands:    make(chan *Command, 256),
-		events:      make(chan *Event, 256),
-		input:       make(chan *Message, 256),
-		output:      make(chan *Message, 256),
-	}
-	go hub.commandProcessing()
-	return &hub
-}
-
 type Hub struct {
-	connections map[string]*zmq4.Socket
-	commands    chan *Command
-	events      chan *Event
-	input       chan *Message
-	output      chan *Message
+	Connections map[string]*zmq4.Socket
+	Commands    chan *Command
+	Events      chan *Event
+	Input       chan *Message
+	Output      chan *Message
 }
 
-func (hub Hub) Connections() map[string]*zmq4.Socket {
-	return hub.connections
+func (hub Hub) GetConnections() map[string]*zmq4.Socket {
+	return hub.Connections
 }
 
 func (hub Hub) Connected(endpoint string) bool {
-	_, has := hub.connections[endpoint]
+	_, has := hub.Connections[endpoint]
 	return has
 }
 
-func (hub Hub) Events() chan *Event {
-	return hub.events
+func (hub Hub) GetEvents() chan *Event {
+	return hub.Events
 }
 
-func (hub Hub) Commands() chan *Command {
-	return hub.commands
+func (hub Hub) GetCommands() chan *Command {
+	return hub.Commands
 }
 
-func (hub Hub) Input() chan *Message {
-	return hub.input
+func (hub Hub) GetInput() chan *Message {
+	return hub.Input
 }
 
-func (hub Hub) Output() chan *Message {
-	return hub.output
+func (hub Hub) GetOutput() chan *Message {
+	return hub.Output
 }
 
 func (hub Hub) ConnectedList() []string {
-	keys := make([]string, len(hub.connections))
+	keys := make([]string, len(hub.Connections))
 	i := 0
-	for k := range hub.connections {
+	for k := range hub.Connections {
 		keys[i] = k
 		i++
 	}
@@ -63,21 +51,21 @@ func (hub Hub) ConnectedList() []string {
 }
 
 func (hub Hub) tryDisconnect(endpoint string) {
-	connection := hub.connections[endpoint] //todo добавление подключения
+	connection := hub.Connections[endpoint] //todo добавление подключения
 	err := (*connection).Close()
 	if err != nil {
 		//todo обработка ошибки
 		return
 	} else {
-		hub.Events() <- &Event{Endpoint: endpoint, EventType: OnDisconnected}
-		delete(hub.connections, endpoint)
+		hub.GetEvents() <- &Event{Endpoint: endpoint, EventType: OnDisconnected}
+		delete(hub.Connections, endpoint)
 	}
 }
 
 func (hub Hub) tryConnect(endpoint string) {
 	i := 1
 
-	if _, exists := hub.connections[endpoint]; exists {
+	if _, exists := hub.Connections[endpoint]; exists {
 		klog.Infof("Connection already exists in pool")
 	} else {
 
@@ -88,18 +76,18 @@ func (hub Hub) tryConnect(endpoint string) {
 			// todo обработка ошибки
 			klog.Error("dealer %d failed to dial: %v", i, err)
 		} else {
-			hub.connections[endpoint] = &dealer
+			hub.Connections[endpoint] = &dealer
 			go hub.inputProcessing(endpoint) // todo контекст для выхода
 			go hub.outputProcessing()        // todo контекст для выхода
-			hub.events <- &Event{Endpoint: endpoint, EventType: OnConnected}
+			hub.Events <- &Event{Endpoint: endpoint, EventType: OnConnected}
 		}
 	}
 
 }
 
-func (hub Hub) commandProcessing() {
+func (hub Hub) CommandProcessing() {
 	for {
-		command := <-hub.commands
+		command := <-hub.Commands
 		switch t := command.CommandType; t {
 		case TryConnect:
 			hub.tryConnect(command.Endpoint)
@@ -113,24 +101,24 @@ func (hub Hub) commandProcessing() {
 
 func (hub Hub) outputProcessing() {
 	for {
-		message := <-hub.output
+		message := <-hub.Output
 		msg := zmq4.NewMsgFrom(message.Message)
-		con := hub.connections[message.Endpoint] //todo обработать ошибку
+		con := hub.Connections[message.Endpoint] //todo обработать ошибку
 		(*con).Send(msg)
 	}
 }
 
 func (hub Hub) inputProcessing(endpoint string) { // @todo сделать контекст.
 	for {
-		con := hub.connections[endpoint]
+		con := hub.Connections[endpoint]
 		request, err := (*con).Recv()
 		if err != nil {
-			delete(hub.connections, endpoint)
-			hub.events <- &Event{Endpoint: endpoint, EventType: OnDisconnected}
+			delete(hub.Connections, endpoint)
+			hub.Events <- &Event{Endpoint: endpoint, EventType: OnDisconnected}
 			klog.Error(err)
 			break
 		}
 		message := request.Frames[0]
-		hub.input <- &Message{message, endpoint}
+		hub.Input <- &Message{message, endpoint}
 	}
 }
