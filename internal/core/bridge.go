@@ -58,7 +58,7 @@ func (cd MessagesBridge) zmqToWsConveyor() {
 		stream, result := cd.Router.ZqmRoute(&pack)
 		if result == Ok {
 			cd.stat("ZmqMessageOk")
-			cd.WsHub.GetOutput() <- &ws.Message{Message: pack.UserInjectedBody(), ConnectionKey: stream.WsEndpoint}
+			cd.WsHub.GetOutput() <- &ws.Message{Message: pack.Raw, ConnectionKey: stream.WsEndpoint}
 		} else {
 			cd.stat("ZmqMessageErr-" + result.String())
 			cd.ZmqHub.GetOutput() <- &zmq.Message{Message: pack.ErrorResponseBody(result.String()), Endpoint: srcMessage.Endpoint}

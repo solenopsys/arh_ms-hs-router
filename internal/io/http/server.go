@@ -19,7 +19,7 @@ type HttpController struct {
 
 func (c HttpController) StartServer(prefix string, host string, port string) {
 	http.HandleFunc(prefix+"services", c.ServicesHandler())
-	http.HandleFunc(prefix+"statistic", c.ServicesHandler())
+	http.HandleFunc(prefix+"statistic", c.StatisticHandler())
 	http.HandleFunc(prefix+"websocket", c.ConnectionFunction(func(token string) (uint16, error) {
 		return 1, nil
 	}))

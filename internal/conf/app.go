@@ -34,7 +34,7 @@ func (c *Integrator) initStatistic() {
 	go c.statistic.UpdateLoop()
 }
 
-func (c *Integrator) initServiceController() {
+func (c *Integrator) InitServiceController() {
 	c.ServicesController = &core.ServicesController{
 		EndpointsApi: prod.NewEndpointsIO(c.KubeConfig, c.EndpointPort),
 		MappingApi:   prod.NewMappingIO(c.KubeConfig),
@@ -43,9 +43,16 @@ func (c *Integrator) initServiceController() {
 		Groups:       make(map[uint16][]string),
 	}
 
+	c.SyncLoopInit()
+
+}
+
+func (c *Integrator) SyncLoopInit() {
 	go func() {
 		for range time.Tick(10 * time.Second) {
 			c.ServicesController.SyncEndpoints()
+			c.unregisterDiff()
+			c.registerDiff()
 		}
 	}()
 }
@@ -69,6 +76,7 @@ func (c *Integrator) initWsHub() {
 		Output:      make(chan *ws.Message, 256),
 	}
 	go c.wsHub.SendToWsMessageProcessing()
+	go c.wsEventProcessing()
 }
 
 func (c *Integrator) initZmqHub() {
@@ -80,6 +88,7 @@ func (c *Integrator) initZmqHub() {
 		Output:      make(chan *zmq.Message, 256),
 	}
 	go c.zmqHub.CommandProcessing()
+	go c.zmqEventProcessing()
 
 }
 
@@ -90,6 +99,7 @@ func (c *Integrator) initMessagesBridge() {
 		Router:    c.routing,
 		Statistic: c.statistic,
 	}
+	c.bridge.Init()
 }
 
 func (c *Integrator) initHttp() {
@@ -105,7 +115,7 @@ func (c *Integrator) initHttp() {
 
 func (c *Integrator) Init() {
 	c.initStatistic()
-	c.initServiceController()
+	c.InitServiceController()
 	c.initRouting()
 	c.initWsHub()
 	c.initZmqHub()
@@ -122,12 +132,20 @@ func (c *Integrator) InitTest() {
 	c.initHttp()
 }
 
-func (c *Integrator) start() {
+func (c *Integrator) unregisterDiff() {
+	for _, endpoint := range c.zmqHub.ConnectedList() {
+		if _, has := c.ServicesController.EndpointsMap[endpoint]; !has {
+			c.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryDisconnect}
+		}
+	}
+}
 
-	go c.wsEventProcessing()
-	go c.zmqEventProcessing()
-	//	go cd.SyncConnectionScheduler()
-
+func (c *Integrator) registerDiff() {
+	for endpoint, _ := range c.ServicesController.EndpointsMap {
+		if connected := c.zmqHub.Connected(endpoint); !connected {
+			c.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryConnect}
+		}
+	}
 }
 
 func (c *Integrator) wsEventProcessing() {

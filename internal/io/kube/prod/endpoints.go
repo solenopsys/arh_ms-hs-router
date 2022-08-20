@@ -10,7 +10,7 @@ import (
 )
 
 func NewEndpointsIO(clientset *kubernetes.Clientset, port string) kube.EndpointsIntf {
-	e := &EndpointsIO{clientset: clientset}
+	e := &EndpointsIO{clientset: clientset, port: port}
 	_, err := e.UpdateEndpoints()
 	if err != nil {
 		klog.Error("ERROR GET ENDPOINTS", err)

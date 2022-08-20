@@ -72,7 +72,7 @@ func (r Routing) WsRoute(messageWrapper MessageRoute) (*StreamConfig, ValidateRe
 
 func (r Routing) ZqmRoute(messageWrapper MessageRoute) (*StreamConfig, ValidateResult) {
 	if conf, has := r.Routes[messageWrapper.Stream()]; has {
-		if conf.WsEndpoint != messageWrapper.ConnectionKey() {
+		if conf.ZmqEndpoint != messageWrapper.ConnectionKey() {
 			return nil, AccessDenied
 		} else {
 			return conf, Ok

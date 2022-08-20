@@ -7,7 +7,10 @@ import (
 	"math/rand"
 	"os"
 	"solenopsys.org/zmq_router/internal/conf"
+	"solenopsys.org/zmq_router/internal/core"
+	"solenopsys.org/zmq_router/internal/io/kube/dev"
 	"solenopsys.org/zmq_router/pkg/kube"
+	"sync"
 	"time"
 )
 
@@ -28,7 +31,7 @@ func main() {
 	devMode := Mode == DEV_MODE
 
 	if devMode {
-		godotenv.Load("configs/router/dev.env")
+		godotenv.Load("configs/router/local.env")
 	}
 
 	host := os.Getenv("server.Host")
@@ -36,12 +39,41 @@ func main() {
 	endpointsPort := os.Getenv("nodes.Port")
 
 	kubeConfig := kube.CreateKubeConfig(devMode)
+	var integrator conf.Integrator
 
-	integrator := conf.Integrator{
-		HttpPort:     port,
-		HttpHost:     host,
-		EndpointPort: endpointsPort,
-		KubeConfig:   kubeConfig,
+	if devMode {
+		controller := &core.ServicesController{
+			EndpointsApi: dev.NewEndpointsIO(),
+			MappingApi:   dev.NewMappingIO(),
+			ServicesMap:  make(map[string]uint16),
+			EndpointsMap: make(map[string]uint16),
+			Groups:       make(map[uint16][]string),
+		}
+
+		integrator = conf.Integrator{
+			HttpPort:           port,
+			HttpHost:           host,
+			EndpointPort:       endpointsPort,
+			KubeConfig:         kubeConfig,
+			ServicesController: controller,
+		}
+		integrator.SyncLoopInit()
+		integrator.InitTest()
+	} else {
+
+		integrator = conf.Integrator{
+			HttpPort:     port,
+			HttpHost:     host,
+			EndpointPort: endpointsPort,
+			KubeConfig:   kubeConfig,
+		}
+		integrator.Init()
+
 	}
-	integrator.Init()
+
+	integrator.ServicesController.SyncEndpoints()
+
+	var wg sync.WaitGroup //todo перенести это
+	wg.Add(1)
+	wg.Wait()
 }

@@ -1,4 +1,4 @@
-package verify
+package dev
 
 import (
 	kube2 "solenopsys.org/zmq_router/internal/io/kube"
@@ -19,6 +19,7 @@ func (e MappingIO) Mapping() map[string]uint16 {
 
 func (e MappingIO) UpdateMapping() (map[string]uint16, error) {
 	return map[string]uint16{
-		"alexstorm-hsm-installer": 1,
+		//	"alexstorm-hsm-installer": 1,
+		"alexstorm-hsm-dgraph": 2,
 	}, nil
 }

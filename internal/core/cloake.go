@@ -137,24 +137,6 @@ package core
 //	}
 //}
 
-//func (sc ServicesController) unregisterDiff() {
-//	for _, endpoint := range sc.zmqHub.ConnectedList() {
-//		if _, has := sc.conf.endpoints[endpoint]; !has {
-//			sc.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryDisconnect}
-//			sc.removeEndpointFromGroup(endpoint) //todo возможно нужно обрабатывать событие
-//		}
-//	}
-//}
-//
-//func (sc ServicesController) registerDiff() {
-//	for endpoint, _ := range sc.conf.endpoints {
-//		if connected := sc.zmqHub.Connected(endpoint); !connected {
-//			sc.zmqHub.GetCommands() <- &zmq.Command{Endpoint: endpoint, CommandType: zmq.TryConnect}
-//			sc.addEndpointToGroup(endpoint) //todo возможно нужно обрабатывать событие
-//		}
-//	}
-//}
-
 //func (r Routing) removeStreamsByZmq(zmeEndpoint string, message string) { //todo испраивить message на код
 //	for id, streamConfig := range r.Streams {
 //		if streamConfig.ZmqEndpoint == zmeEndpoint {

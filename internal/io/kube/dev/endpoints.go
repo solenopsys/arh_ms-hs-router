@@ -1,4 +1,4 @@
-package verify
+package dev
 
 import (
 	"k8s.io/klog/v2"
@@ -24,6 +24,7 @@ func (e EndpointsIO) Endpoints() map[string]string {
 
 func (e EndpointsIO) UpdateEndpoints() (map[string]string, error) {
 	return map[string]string{
-		"tcp://192.168.122.29:5561": "alexstorm-hsm-installer",
+		//"tcp://192.168.122.29:5561": "alexstorm-hsm-installer",
+		"tcp://192.168.122.29:9999": "alexstorm-hsm-dgraph",
 	}, nil
 }

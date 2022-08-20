@@ -9,8 +9,10 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
-COPY *.go ./
+COPY cmd ./cmd
+COPY internal ./internal
+COPY pkg ./pkg
 
-RUN GOOS=linux GOARCH=$TARGETARCH go build  -o /go-binary
+RUN GOOS=linux GOARCH=$TARGETARCH go build -o /go-binary  /app/cmd/app/main.go
 
 CMD [ "/go-binary" ]
