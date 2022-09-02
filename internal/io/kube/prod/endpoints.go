@@ -6,22 +6,21 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"solenopsys.org/zmq_router/internal/io/kube"
 )
-
-func NewEndpointsIO(clientset *kubernetes.Clientset, port string) kube.EndpointsIntf {
-	e := &EndpointsIO{clientset: clientset, port: port}
-	_, err := e.UpdateEndpoints()
-	if err != nil {
-		klog.Error("ERROR GET ENDPOINTS", err)
-	}
-	return e
-}
 
 type EndpointsIO struct {
 	clientset *kubernetes.Clientset
 	endpoints map[string]string // endpoint : service
 	port      string
+}
+
+func NewEndpointsIO(clientset *kubernetes.Clientset, port string) EndpointsIO {
+	e := EndpointsIO{clientset: clientset, port: port}
+	_, err := e.UpdateEndpoints()
+	if err != nil {
+		klog.Error("ERROR GET ENDPOINTS", err)
+	}
+	return e
 }
 
 func (e EndpointsIO) Endpoints() map[string]string {

@@ -35,24 +35,32 @@ func (c *Integrator) initStatistic() {
 }
 
 func (c *Integrator) InitServiceController() {
+
+	endpointsIO := prod.NewEndpointsIO(c.KubeConfig, c.EndpointPort)
+	mappingIO := prod.NewMappingIO(c.KubeConfig)
 	c.ServicesController = &core.ServicesController{
-		EndpointsApi: prod.NewEndpointsIO(c.KubeConfig, c.EndpointPort),
-		MappingApi:   prod.NewMappingIO(c.KubeConfig),
+		EndpointsApi: endpointsIO,
+		MappingApi:   mappingIO,
 		ServicesMap:  make(map[string]uint16),
 		EndpointsMap: make(map[string]uint16),
 		Groups:       make(map[uint16][]string),
 	}
-
-	c.SyncLoopInit()
+	configmapUpdater := prod.NewChangerConfigmap(c.KubeConfig)
+	c.SyncLoopInit(&configmapUpdater)
 
 }
 
-func (c *Integrator) SyncLoopInit() {
+func (c *Integrator) SyncLoopInit(updater *prod.ChangerConfigmapIO) {
 	go func() {
 		for range time.Tick(10 * time.Second) {
-			c.ServicesController.SyncEndpoints()
+			endpointsForUpdateConfigmap := c.ServicesController.SyncEndpoints()
 			c.unregisterDiff()
 			c.registerDiff()
+
+			if endpointsForUpdateConfigmap != nil && updater != nil {
+				go updater.UpdateConfigMap(endpointsForUpdateConfigmap)
+			}
+
 		}
 	}()
 }

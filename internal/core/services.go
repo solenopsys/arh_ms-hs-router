@@ -30,7 +30,7 @@ func (sc *ServicesController) Endpoints() map[string]uint16 {
 	return sc.EndpointsMap
 }
 
-func (sc *ServicesController) SyncEndpoints() {
+func (sc *ServicesController) SyncEndpoints() map[string]string {
 	var changed = false
 
 	services, mappingError := sc.MappingApi.UpdateMapping()
@@ -48,10 +48,17 @@ func (sc *ServicesController) SyncEndpoints() {
 			sc.EndpointsMap = covertedEndpoints
 		}
 	}
+
+	for _, serviceName := range endpoints {
+		if _, ok := services[serviceName]; !ok {
+			return endpoints
+		}
+	}
 	if changed {
 		sc.Groups = sc.generateGroups()
 	}
 
+	return nil
 }
 
 func (sc *ServicesController) RandomEndpointByType(serviceType uint16) (string, error) {

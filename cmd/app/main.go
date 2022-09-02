@@ -57,7 +57,7 @@ func main() {
 			KubeConfig:         kubeConfig,
 			ServicesController: controller,
 		}
-		integrator.SyncLoopInit()
+		integrator.SyncLoopInit(nil)
 		integrator.InitTest()
 	} else {
 

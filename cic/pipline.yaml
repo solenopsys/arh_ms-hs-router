@@ -1,0 +1,21 @@
+defaults:
+    gitRegistry: git.alexstorm.solenopsys.org
+    dockerRegistry: registry.alexstorm.solenopsys.org
+    helmRegistry: helm.alexstorm.solenopsys.org
+    gitRepoName: alexstorm-hsm-router
+    targetImageName: alexstorm-hsm-router
+    buildForArch: "linux/amd64,linux/arm64"
+    imageVersion: latest
+    helmPackageVersion: latest # todo убрать это
+
+jobs:
+  - create-container:
+      docker: go_build_x
+  - create-helm-package:
+      docker: helm_build
+
+pipeline:
+  - build-image
+  - create-helm-package
+
+
