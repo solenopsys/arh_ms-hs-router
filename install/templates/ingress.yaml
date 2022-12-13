@@ -8,21 +8,7 @@ spec:
   rules:
   - http:
       paths:
-        - path: /ws
-          pathType: ImplementationSpecific
-          backend:
-            service:
-              name:  {{ .Values.fullName }}
-              port:
-                number: {{ .Values.service.httpPort }}
-        - path: /info
-          pathType: ImplementationSpecific
-          backend:
-            service:
-              name:  {{ .Values.fullName }}
-              port:
-                number: {{ .Values.service.httpPort }}
-        - path: /stat
+        - path: /hs
           pathType: ImplementationSpecific
           backend:
             service:
