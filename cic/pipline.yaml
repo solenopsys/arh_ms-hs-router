@@ -1,7 +1,7 @@
 defaults:
-    gitRegistry: git.klogsolenopsys.org
-    dockerRegistry: registry.klogsolenopsys.org
-    helmRegistry: helm.klogsolenopsys.org
+    gitRegistry: git.solenopsys.org
+    dockerRegistry: registry.solenopsys.org
+    helmRegistry: helm.solenopsys.org
     gitRepoName: alexstorm-hsm-router
     targetImageName: alexstorm-hsm-router
     buildForArch: "linux/amd64,linux/arm64"

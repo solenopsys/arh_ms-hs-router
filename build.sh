@@ -7,11 +7,11 @@ build_push(){
 helm_build_push(){
   FN=${NAME}-${VER}.tgz
   helm package ./install --version ${VER}
-  curl --data-binary "@${FN}" http://helm.klogsolenopsys.org/api/charts
+  curl --data-binary "@${FN}" http://helm.solenopsys.org/api/charts
   rm ${FN}
 }
 
-REGISTRY=registry.klogsolenopsys.org
+REGISTRY=registry.solenopsys.org
 NAME=alexstorm-hsm-router
 ARCHS="linux/amd64,linux/arm64"
 VER=0.1.24
