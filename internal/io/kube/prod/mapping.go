@@ -2,21 +2,21 @@ package prod
 
 import (
 	"context"
+	"github.com/solenopsys/bl-kubernetes-tools"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"solenopsys.org/zmq_router/pkg/kube"
 	"solenopsys.org/zmq_router/pkg/utils"
 )
 
 type MappingIO struct {
 	clientset *kubernetes.Clientset
-	kubeLock  *kube.KubeLock
+	kubeLock  *bl_kubernetes_tools.KubeLock
 	mapping   map[string]uint16
 }
 
 func NewMappingIO(clientset *kubernetes.Clientset) MappingIO {
-	lock := &kube.KubeLock{clientset, 1, 5, 10}
+	lock := &bl_kubernetes_tools.KubeLock{clientset, 1, 5, 10}
 	e := MappingIO{clientset: clientset, kubeLock: lock}
 	_, err := e.UpdateMapping()
 	if err != nil {

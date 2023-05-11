@@ -2,23 +2,23 @@ package prod
 
 import (
 	"context"
+	"github.com/solenopsys/bl-kubernetes-tools"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
-	"solenopsys.org/zmq_router/pkg/kube"
 	"solenopsys.org/zmq_router/pkg/utils"
 )
 
 func NewChangerConfigmap(clientset *kubernetes.Clientset) ChangerConfigmapIO {
-	lock := &kube.KubeLock{clientset, 1, 3, 6}
+	lock := &bl_kubernetes_tools.KubeLock{clientset, 1, 3, 6}
 	return ChangerConfigmapIO{clientset: clientset, kubeLock: lock}
 }
 
 type ChangerConfigmapIO struct {
 	clientset *kubernetes.Clientset
-	kubeLock  *kube.KubeLock
+	kubeLock  *bl_kubernetes_tools.KubeLock
 }
 
 func (k ChangerConfigmapIO) UpdateConfigMap(endpoints map[string]string) {

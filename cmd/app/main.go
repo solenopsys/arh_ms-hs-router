@@ -4,12 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"github.com/joho/godotenv"
+	bl_kubernetes_tools "github.com/solenopsys/bl-kubernetes-tools"
 	"math/rand"
 	"os"
 	"solenopsys.org/zmq_router/internal/conf"
 	"solenopsys.org/zmq_router/internal/core"
 	"solenopsys.org/zmq_router/internal/io/kube/dev"
-	"solenopsys.org/zmq_router/pkg/kube"
+
 	"sync"
 	"time"
 )
@@ -38,7 +39,7 @@ func main() {
 	port := os.Getenv("server.Port")
 	endpointsPort := os.Getenv("nodes.Port")
 
-	kubeConfig := kube.CreateKubeConfig(devMode)
+	kubeConfig, _ := bl_kubernetes_tools.CreateKubeConfig(devMode)
 	var integrator conf.Integrator
 
 	if devMode {
